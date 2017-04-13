@@ -1,0 +1,76 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+# We've included some commented out config examples here.
+# Just uncomment any of them to get that config option.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+service: neoslack # NOTE: update this with your service name
+
+provider:
+  name: aws
+  runtime: nodejs4.3
+  memorySize: 512
+  stage: dev
+  region: eu-west-1
+  environment:
+    QUEUE:
+      Ref: NeoSlackEventQueue
+
+functions:
+  hello:
+    handler: handler.slackEvent
+    events:
+      - http:
+          path: slack/event
+          method: POST
+
+resources:
+  Resources:
+    NeoSlackEventQueue:
+      Type: AWS::SQS::Queue
+
+    NeoSlackSQSLambdaPolicy:
+      Type: AWS::IAM::Policy
+      DependsOn: NeoSlackEventQueue
+      Properties:
+        PolicyName: neoslack-send
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+              Resource: { "Fn::GetAtt" : ["NeoSlackEventQueue", "Arn"]}
+        Roles:
+          - Ref: IamRoleLambdaExecution
+
+    NeoSlackReadUser:
+      Type: AWS::IAM::User
+      Properties:
+        Path: /neoslack/
+
+    NeoSlackSQSReadPolicy:
+      Type: AWS::IAM::Policy
+      DependsOn: NeoSlackEventQueue
+      Properties:
+        PolicyName: neoslack-read
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+              Resource: { "Fn::GetAtt" : ["NeoSlackEventQueue", "Arn"]}
+        Users:
+          - Ref: NeoSlackReadUser
+  Outputs:
+    NeoSlackReadUser:
+      Value:
+        Ref: NeoSlackReadUser
